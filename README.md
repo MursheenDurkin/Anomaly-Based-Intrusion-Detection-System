@@ -2,10 +2,8 @@
 ### A Hybrid Machine Learning Approach Combining XGBoost and Deep Autoencoder via Weighted Voting
 
 **Author:** MursheenDurkin  
-**Institution:** Welsh University  
-**Programme:** BSc (Hons) Computing. Final Year Dissertation  
-**Supervisor:** Project Supervisor  
-**Academic Year:** 2025–2026
+**Programme:** BSc (Hons) Cyber Security and Networking, Final Year Dissertation  
+**Academic Year:** 2025-2026
 
 ---
 
@@ -172,8 +170,7 @@ The following directions have been identified for future development:
 
 ## Acknowledgements
 
-Supervisor: **Project Supervisor**, Welsh University  
-Second Marker: **Second Marker**, Welsh University  
+Thanks to my project supervisor and second marker for their guidance and feedback throughout.  
 Dataset: **Canadian Institute for Cybersecurity**, University of New Brunswick  
 
 ---
