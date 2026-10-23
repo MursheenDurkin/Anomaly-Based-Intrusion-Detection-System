@@ -5,6 +5,8 @@
 **Programme:** BSc (Hons) Computing (Computer Networks and Cybersecurity), final year dissertation, First Class  
 **Academic Year:** 2025-2026
 
+> This repository is the project write-up. The notebooks, prototype code and dissertation documents formed the assessed submission and are not published here; the sections below describe how the submitted project was organised and run.
+
 ---
 
 ## Overview
