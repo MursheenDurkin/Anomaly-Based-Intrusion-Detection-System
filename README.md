@@ -3,7 +3,7 @@
 
 **Author:** MursheenDurkin  
 **Institution:** Welsh University  
-**Programme:** BSc (Hons) Computing — Final Year Dissertation  
+**Programme:** BSc (Hons) Computing. Final Year Dissertation  
 **Supervisor:** Project Supervisor  
 **Academic Year:** 2025–2026
 
@@ -13,14 +13,14 @@
 
 This project builds, evaluates, and deploys a hybrid machine learning-based Intrusion Detection System (ML-IDS) capable of detecting both known and previously unseen network attacks. It combines two fundamentally different detection approaches into a single system:
 
-- A **supervised XGBoost classifier** — trained on labelled attack and benign traffic to recognise known attack patterns with high precision
-- An **unsupervised deep autoencoder** — trained only on normal (benign) traffic to learn what a healthy network looks like, flagging anything unusual as a potential threat
+- A **supervised XGBoost classifier**: trained on labelled attack and benign traffic to recognise known attack patterns with high precision
+- An **unsupervised deep autoencoder**: trained only on normal (benign) traffic to learn what a healthy network looks like, flagging anything unusual as a potential threat
 
 These two components are blended through a **weighted voting ensemble**, producing a system whose combined detection rate exceeds either component operating alone.
 
 The system was trained and evaluated on the **CIC-IDS2017 dataset** (2,498,043 network flow records, 15 traffic categories) and benchmarked against **Snort 2.9**, a widely deployed signature-based IDS.
 
-A **live traffic prototype** was also developed and deployed on physical hardware — a Raspberry Pi 4 connected to a Cisco Catalyst 2960 switch via SPAN port — demonstrating that the trained models can classify real network traffic in near real-time.
+A **live traffic prototype** was also developed and deployed on physical hardware, a Raspberry Pi 4 connected to a Cisco Catalyst 2960 switch via SPAN port, demonstrating that the trained models can classify real network traffic in near real-time.
 
 ---
 
@@ -29,12 +29,12 @@ A **live traffic prototype** was also developed and deployed on physical hardwar
 | System | Accuracy | Recall | F1-Score | AUC |
 |--------|----------|--------|----------|-----|
 | Hybrid ML-IDS (Weighted Voting) | 99.92% | 99.89% | 99.90% | 1.0000 |
-| XGBoost alone | 99.90% | 99.83% | — | 0.9999 |
-| Snort 2.9 (baseline) | 88.82% | 49.04% | 59.92% | — |
+| XGBoost alone | 99.90% | 99.83% |: | 0.9999 |
+| Snort 2.9 (baseline) | 88.82% | 49.04% | 59.92% |: |
 
 - The hybrid ensemble reduced missed attacks by **34%** compared to XGBoost alone
 - The ML-IDS outperformed Snort by **+66.5% in F1-score**
-- False positive rate: **0.08%** — only 94 of 85,148 attack flows missed
+- False positive rate: **0.08%**: only 94 of 85,148 attack flows missed
 
 ---
 
@@ -153,8 +153,8 @@ curl http://localhost:5000/api/health
 
 Full project documentation is available in the `docs/` folder:
 
-- **Work Journal** — a detailed phase-by-phase record of the project from inception through to completion, including challenges encountered, decisions made, and outcomes achieved
-- **Prior Knowledge Document** — a comprehensive knowledge base covering the technical stack, literature, results, and future research directions — intended as a reference for future students building on this work
+- **Work Journal**: a detailed phase-by-phase record of the project from inception through to completion, including challenges encountered, decisions made, and outcomes achieved
+- **Prior Knowledge Document**: a comprehensive knowledge base covering the technical stack, literature, results, and future research directions, intended as a reference for future students building on this work
 
 ---
 
@@ -162,11 +162,11 @@ Full project documentation is available in the `docs/` folder:
 
 The following directions have been identified for future development:
 
-- **Red Team / Purple Team pipeline** — automated adversarial attack generation and model retraining feedback loop
-- **Concept drift monitoring** — ADWIN or Page-Hinkley detection to trigger retraining as traffic patterns evolve
-- **Federated learning** — privacy-preserving collaborative model training across multiple network sensors
-- **SHAP explainability** — per-alert feature contribution scores for analyst trust
-- **Robotic cybersecurity** — applying the hybrid IDS framework to robotic systems and autonomous platforms
+- **Red Team / Purple Team pipeline**: automated adversarial attack generation and model retraining feedback loop
+- **Concept drift monitoring**: ADWIN or Page-Hinkley detection to trigger retraining as traffic patterns evolve
+- **Federated learning**: privacy-preserving collaborative model training across multiple network sensors
+- **SHAP explainability**: per-alert feature contribution scores for analyst trust
+- **Robotic cybersecurity**: applying the hybrid IDS framework to robotic systems and autonomous platforms
 
 ---
 
