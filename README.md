@@ -1,127 +1,196 @@
 # Anomaly-Based Intrusion Detection System
-### A Hybrid Machine Learning Approach Combining XGBoost and Deep Autoencoder via Weighted Voting
+### A Hybrid Machine Learning Approach Combining XGBoost and a Deep Autoencoder via Weighted Voting
 
 **Author:** MursheenDurkin  
-**Programme:** BSc (Hons) Cyber Security and Networking, Final Year Dissertation  
+**Programme:** BSc (Hons) Computing (Computer Networks and Cybersecurity), final year dissertation, First Class  
 **Academic Year:** 2025-2026
-
-> This repository is the project write-up. The notebooks, prototype code and dissertation documents formed the assessed submission and are not published here.
 
 ---
 
 ## Overview
 
-This project built, evaluated and deployed a hybrid machine-learning intrusion detection system (ML-IDS) capable of detecting both known and previously unseen network attacks. It combines two fundamentally different detection approaches in a single system:
+This project builds and evaluates a hybrid machine learning Intrusion Detection System (ML-IDS) designed to detect both known and previously unseen network attacks. It combines two different detection approaches:
 
-- A **supervised XGBoost classifier**, trained on labelled attack and benign traffic to recognise known attack patterns with high precision
-- An **unsupervised deep autoencoder**, trained only on benign traffic to learn what a healthy network looks like and flag anything unusual as a potential threat
+- A **supervised XGBoost classifier**, trained on labelled attack and benign traffic to recognise known attack patterns.
+- An **unsupervised deep autoencoder**, trained only on benign traffic to learn what normal looks like, so that anything it reconstructs poorly is treated as suspicious.
 
-The two components are blended through a **weighted voting ensemble**, producing a combined detection rate that exceeds either component operating alone.
+The two are combined through a **weighted voting ensemble**. The ensemble achieved higher recall than either component on its own, missing 34% fewer attacks than XGBoost alone.
 
-The system was trained and evaluated on the **CIC-IDS2017 dataset** (2,498,043 network flow records, 15 traffic categories) and benchmarked against **Snort 2.9**, a widely deployed signature-based IDS.
+The system was trained and evaluated on the **CIC-IDS2017** dataset and compared against a **Snort 2.9** signature-based baseline.
 
-A **live traffic prototype** was then deployed on physical hardware: a Raspberry Pi 4 receiving mirrored traffic from a Cisco Catalyst 2960 switch via a SPAN port, demonstrating that the trained models classify real network traffic in near real time.
+A **live traffic prototype** was also built. It ran on an Ubuntu VM receiving traffic mirrored from a Cisco Catalyst 2960 switch SPAN port, with a Raspberry Pi 4 generating test traffic, and classified real network flows in near real time.
 
 ---
 
 ## Key Results
 
-| System | Accuracy | Recall | F1-Score | AUC |
-|--------|----------|--------|----------|-----|
-| Hybrid ML-IDS (Weighted Voting) | 99.92% | 99.89% | 99.90% | 1.0000 |
-| XGBoost alone | 99.90% | 99.83% | n/a | 0.9999 |
-| Snort 2.9 (baseline) | 88.82% | 49.04% | 59.92% | n/a |
+Binary classification (attack vs benign) on the held-out test set of 499,609 flows:
 
-- The hybrid ensemble reduced missed attacks by **34%** compared with XGBoost alone
-- The ML-IDS outperformed Snort by **66.5 percentage points in F1-score**
-- False positive rate of **0.08%**; only 94 of 85,148 attack flows were missed
+| System | Accuracy | Precision | Recall | F1-Score | AUC | FPR |
+|--------|----------|-----------|--------|----------|-----|-----|
+| **Hybrid ML-IDS (Weighted Voting)** | 99.92% | 99.63% | **99.89%** | 99.76% | 1.0000 | 0.08% |
+| XGBoost alone | 99.92% | 99.68% | 99.83% | 99.76% | 1.0000 | 0.06% |
+| Autoencoder alone | 89.03% | 71.12% | 59.96% | 65.06% | 0.8644 | 5.00% |
+| Snort 2.9 (simulated baseline) | 88.82% | 77.02% | 49.04% | 59.92% | N/A | 22.98% |
+
+- **Missed attacks:** the hybrid missed 94 of 85,148 attack flows, compared with 143 for XGBoost alone, a 34% reduction.
+- **False positive rate:** 0.08%, meaning 313 of 414,461 benign flows were wrongly flagged.
+- **The trade-off:** the hybrid raises slightly more false alarms than XGBoost alone (0.08% vs 0.06%) in exchange for catching more attacks. For an IDS, a missed attack usually costs more than a false alarm.
+- **Against Snort:** the hybrid's F1-score was 66.5% higher (99.76% vs 59.92%). Snort missed over half of all attacks.
+
+Results above 99% are typical on CIC-IDS2017 and may not carry over to real networks. See [Limitations](#limitations).
 
 ---
 
 ## How It Works
 
 ```
-Raw Network Traffic
+Network flow (70 features)
         ↓
-Flow Feature Extraction (CICFlowMeter-compatible, 70 features)
+StandardScaler
         ↓
-    ┌─────────────────────────────────────┐
-    │         Weighted Voting Ensemble     │
+    ┌──────────────────────────────────────┐
+    │       Weighted Voting Ensemble       │
     │                                      │
-    │  XGBoost (weight: 0.7)              │
-    │  → Attack probability score         │
+    │  XGBoost (weight 0.7)                │
+    │  → attack probability                │
     │                                      │
-    │  Deep Autoencoder (weight: 0.3)     │
-    │  → Reconstruction error score       │
-    └─────────────────────────────────────┘
+    │  Deep Autoencoder (weight 0.3)       │
+    │  → reconstruction error,             │
+    │    normalised to 0-1                 │
+    └──────────────────────────────────────┘
         ↓
-  Combined Score > 0.3093 threshold?
+  Combined score > 0.3093 ?
         ↓              ↓
-    ATTACK          BENIGN
+     ATTACK         BENIGN
         ↓
-  REST API Alert (/api/alerts)
+  REST API alert (/api/alerts)
 ```
 
----
+- **XGBoost:** binary classifier (benign vs attack) with 200 estimators.
+- **Autoencoder:** TensorFlow/Keras, layers 70 → 64 → 32 → 16 → 32 → 64 → 70. Trained only on 1,657,841 benign samples (90/10 train/validation split) using the Adam optimiser and MSE loss, with early stopping.
+- **Ensemble:** score = 0.7 × XGBoost attack probability + 0.3 × normalised autoencoder error. The 0.3093 threshold was chosen using Youden's J statistic on the ROC curve.
+- **Also tested:** a stacking ensemble (RandomForest and XGBoost base models with a LogisticRegression meta-learner) for comparison. It reached 99.91% accuracy but was not used in the final system.
 
-## What Was Built
-
-**Analysis and modelling pipeline** (five Jupyter notebooks, each saving its outputs for the next stage):
-
-1. Data exploration: dataset profiling and class distribution
-2. Preprocessing: cleaning, feature scaling, train/test split
-3. Snort 2.9 baseline: evidence-based evaluation of the signature-based comparator
-4. Stacking ensemble: RandomForest + XGBoost exploration
-5. Autoencoder and weighted voting: the core hybrid ML-IDS implementation
-
-**Live traffic prototype** (Python):
-
-- A flow extractor performing real-time packet capture and CICFlowMeter-compatible feature extraction with Scapy
-- A live IDS engine that scores each flow through the ensemble and exposes alerts over a Flask REST API (`/api/alerts`, `/api/stats`, `/api/health`)
-
-**Project documentation**:
-
-- A phase-by-phase work journal covering the project from inception to completion, including challenges, decisions and outcomes
-- A prior-knowledge document covering the technical stack, literature, results and future research directions, written as a reference for students building on the work
+The most important feature for XGBoost was **Bwd Packet Length Std** (the variation in packet sizes travelling back from the server), followed by Average Packet Size and Idle Mean.
 
 ---
 
 ## Dataset
 
-The project used the **CIC-IDS2017** dataset created by the Canadian Institute for Cybersecurity at the University of New Brunswick.
+This project uses the **CIC-IDS2017** dataset from the Canadian Institute for Cybersecurity, University of New Brunswick.
 
-- **Source:** https://www.unb.ca/cic/datasets/ids-2017.html
-- **Size:** approximately 2.8 million flow records, 80+ features
-- **Attack types:** DoS, DDoS, PortScan, Brute Force, Web Attacks, Botnet, Infiltration, Heartbleed
+- **Download:** https://www.unb.ca/cic/datasets/ids-2017.html (CSV flow records)
+- **Raw size:** over 2.8 million flow records across eight CSV files, 78 features each
+- **After cleaning:** 2,498,043 records, 70 features, 15 classes (benign plus 14 attack types)
+- **Split:** 80/20 stratified train/test (1,998,434 / 499,609)
+- **Attack types:** DoS (Hulk, GoldenEye, Slowloris, Slowhttptest), DDoS, PortScan, FTP and SSH brute force, web attacks (brute force, XSS, SQL injection), Bot, Infiltration and Heartbleed
+
+**Preprocessing:** removed rows with missing and infinite values and duplicates, encoded labels, scaled features with StandardScaler, and downcast to 32-bit floats to fit within 8 GB of RAM.
+
+Place the downloaded CSV files in the `data/` directory before running the notebooks.
 
 ---
 
-## Environment
+## Repository Structure
 
-**Software:** Python, XGBoost, TensorFlow, scikit-learn, pandas, NumPy, Scapy, Flask, Matplotlib, Seaborn, Jupyter
+```
+├── notebooks/
+│   ├── 01_data_exploration.ipynb             # Dataset exploration and class distribution
+│   ├── 02_preprocessing.ipynb                # Cleaning, scaling, train/test split
+│   ├── 03_snort_baseline.ipynb               # Snort 2.9 evidence-based evaluation
+│   ├── 04_stacking_ensemble.ipynb            # RandomForest + XGBoost stacking comparison
+│   └── 05_autoencoder_weighted_voting.ipynb  # Core hybrid ML-IDS
+├── prototype/
+│   ├── flow_extractor.py                     # Packet capture and flow feature extraction
+│   └── live_ids.py                           # Live IDS engine with REST API
+├── docs/
+│   ├── Work_Journal_IDS_Project.docx         # Phase-by-phase project journal
+│   └── Prior_Knowledge_Document.docx         # Knowledge base for future work
+├── data/
+│   └── README.md                             # Dataset download instructions
+└── README.md
+```
 
-**Hardware:**
-- Ubuntu 22.04 Server VM (Oracle VirtualBox), 4 vCPU cores, 8 GB RAM, for training and evaluation
-- Cisco Catalyst 2960 managed switch with SPAN port mirroring
-- Raspberry Pi 4 as the live-traffic sensor
+---
+
+## Requirements
+
+```bash
+pip install xgboost tensorflow scikit-learn pandas numpy scapy flask matplotlib seaborn jupyter
+```
+
+Versions used: scikit-learn 1.5, XGBoost 2.1, TensorFlow/Keras 2.18.
+
+**Development environment:**
+- Ubuntu 22.04 Server VM (Oracle VirtualBox), 4 vCPU cores, 8 GB RAM, CPU only
+- Cisco Catalyst 2960 managed switch (live prototype)
+- Raspberry Pi 4 (traffic source for live testing)
+
+Training times on this VM: XGBoost 14.3 seconds, autoencoder 2.3 minutes, stacking ensemble 12 minutes.
+
+---
+
+## Running the Notebooks
+
+```bash
+jupyter notebook
+```
+
+Run them in order, from `01_data_exploration.ipynb` to `05_autoencoder_weighted_voting.ipynb`. Each notebook saves its outputs (preprocessed data, trained models) so the next one can load them without retraining.
+
+---
+
+## Live Traffic Prototype
+
+The prototype captures packets with scapy, groups them into flows by 5-tuple (source and destination IP, source and destination port, protocol), extracts the same 70 features, and classifies each flow with the trained ensemble. Capture and classification run in separate threads.
+
+It needs root privileges and a network interface receiving mirrored traffic from a SPAN port:
+
+```bash
+sudo python3 prototype/live_ids.py --interface eth0
+```
+
+Alerts are available through a Flask REST API, ready for SIEM integration:
+
+```bash
+curl http://localhost:5000/api/alerts   # Recent alerts
+curl http://localhost:5000/api/stats    # Summary statistics
+curl http://localhost:5000/api/health   # System health
+```
+
+---
+
+## Limitations
+
+- **Dataset age:** CIC-IDS2017 was recorded in 2017 in a controlled testbed, so it does not reflect every modern attack or real network conditions. Very high accuracy is common on this dataset.
+- **Simulated Snort baseline:** the dataset is provided as CSV flow records rather than packet captures, so traffic could not be replayed through Snort. Instead, Snort's 3,948 active community rules were analysed and an evidence-based detection rate was assigned to each attack type.
+- **No significance testing:** improvements are reported as absolute differences without statistical significance tests.
+- **Hardware:** all training ran on a CPU-only VM with 8 GB RAM.
+- **Live testing scope:** the prototype was tested on a single switch with one Raspberry Pi 4 as the traffic source.
 
 ---
 
 ## Future Work
 
-- **Red team / purple team pipeline**: automated adversarial attack generation with a model-retraining feedback loop
-- **Concept drift monitoring**: ADWIN or Page-Hinkley detection to trigger retraining as traffic patterns evolve
-- **Federated learning**: privacy-preserving collaborative model training across multiple network sensors
-- **SHAP explainability**: per-alert feature contribution scores to support analyst trust
-- **Robotic cybersecurity**: applying the hybrid IDS framework to robotic systems and autonomous platforms
+- **Red Team and Purple Team pipeline:** automatically generate adversarial attack variants and feed them back into training.
+- **Concept drift monitoring:** detect when traffic patterns change (for example with ADWIN or Page-Hinkley) and trigger retraining.
+- **Federated learning:** train across multiple network sensors without pooling raw traffic data.
+- **Explainability:** per-alert feature contribution scores (for example SHAP) to help analysts trust and act on alerts.
 
 ---
 
 ## Acknowledgements
 
-Thanks to my project supervisor and second marker for their guidance and feedback throughout.  
-Dataset: **Canadian Institute for Cybersecurity**, University of New Brunswick
+Thanks to my project supervisor and second marker for their guidance and feedback.  
+Dataset: Canadian Institute for Cybersecurity, University of New Brunswick.
 
 ---
 
-*This work was submitted as a final-year dissertation and is shared for academic reference. If you build on it, please cite appropriately.*
+## Licence
+
+Submitted as a final year dissertation. The code and documentation are available for academic reference. If you build on this work, please cite it.
+
+---
+
+*GitHub: [github.com/MursheenDurkin](https://github.com/MursheenDurkin)*
